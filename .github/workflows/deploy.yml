@@ -24,7 +24,7 @@ jobs:
           debug: true
           script: |
             echo "Conectado como:"
-            whoami
+            mauriciohn
 
             echo "Entrando al proyecto"
             cd /home/mauricio/bot   # 👈 AJUSTA ESTA RUTA
