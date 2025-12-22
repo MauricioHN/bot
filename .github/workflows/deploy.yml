@@ -4,21 +4,38 @@ on:
   push:
     branches:
       - master
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          debug: true
           script: |
-            cd /opt/telegram-bot
+            echo "Conectado como:"
+            whoami
+
+            echo "Entrando al proyecto"
+            cd /home/mauricio/bot   # 👈 AJUSTA ESTA RUTA
+
+            echo "Actualizando código"
             git pull
-            docker compose down
-            docker compose build
-            docker compose up -d
+
+            echo "Apagando contenedores"
+            docker compose down || true
+
+            echo "Levantando contenedores"
+            docker compose up -d --build
+
+            echo "Deploy terminado"
