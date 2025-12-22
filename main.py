@@ -17,6 +17,7 @@ if not TOKEN:
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """hola"""
+    print("🤖 Bot iniciado correctamente")
     await update.message.reply_text(update.message.text)
 
 
