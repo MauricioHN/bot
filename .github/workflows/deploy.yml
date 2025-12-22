@@ -27,7 +27,7 @@ jobs:
             mauriciohn
 
             echo "Entrando al proyecto"
-            cd /home/mauricio/bot   # 👈 AJUSTA ESTA RUTA
+            cd C:/Users/MauricioHN/Desktop/bot
 
             echo "Actualizando código"
             git pull
