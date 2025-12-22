@@ -121,9 +121,6 @@ async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(mensaje)
 
-# application = ApplicationBuilder().token(
- #   "7988722624:AAGqIlwSc8sDHbI7WHbShSNEmqnTrxH9c9E").build()
-
 application = ApplicationBuilder().token(
     TOKEN).build()
 application.add_handler(CommandHandler("echo", echo))
