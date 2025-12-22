@@ -1,0 +1,14 @@
+Plaintext
+
+# Variables de entorno (Contiene tokens y contraseñas)
+.env
+
+# Entorno virtual
+entorno/
+venv/
+env/
+
+# Archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class

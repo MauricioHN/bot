@@ -1,15 +1,15 @@
 """Bot de comandos para telegram"""
 import re
-import os
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+TOKEN = "7988722624:AAGqIlwSc8sDHbI7WHbShSNEmqnTrxH9c9E"
 API_INBOUND = 'https://layer-api-inbound-reservation-service'
-API_CORE = 'https://layer-api-core-service'
+API_CORE = 'https://layer-api-core-service.tysonprod.com/v1'
 API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
+EVENT_HANDLER = 'https://layer-api-event-handler-service.tysonprod.com/v1'
+EVENT_BUS = 'https://layer-api-event-bus-service.tysonprod.com/v1'
 
 if not TOKEN:
     raise RuntimeError("❌ TELEGRAM_TOKEN no está definido")
@@ -25,7 +25,7 @@ async def prop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     argumento = update.message.text.split(maxsplit=1)[1]
     print(argumento)
     segment = requests.get(
-        API_CORE + '.tysonprod.com/v1/api/get_task_segment?task_segment_id=' + argumento, timeout=70)
+        API_CORE + '/api/get_task_segment?task_segment_id=' + argumento, timeout=70)
     segmento = segment.json()
     segmento = segmento['status']
     print(segmento)
@@ -45,9 +45,9 @@ async def get_liga(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     url_get_tareas = API_INBOUND + \
         '.tysonprod.com/v1/api/videocallReservationByIdSolicitud'
-    url_get_request = API_CORE + '.tysonprod.com/v1/api/get_task_request?uuid='
+    url_get_request = API_CORE + '/api/get_task_request?uuid='
     url_get_crowd_task = API_CORE + \
-        '.tysonprod.com/v1/api/get_task_results_manager?pageNumber=0&itemsPerPage=1000&period=ALL&idSolicitud='
+        '/api/get_task_results_manager?pageNumber=0&itemsPerPage=1000&period=ALL&idSolicitud='
 
     response_get_traeas = requests.post(
         url_get_tareas, json={"idSolicitud": argumento}, timeout=60)
@@ -122,10 +122,53 @@ async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(mensaje)
 
+
+async def republicar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Republicar una tarea de captura o veridispersion"""
+    print("🤖 Bot iniciado correctamente")
+    # Expresión regular para UUID
+    pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+    argumento = update.message.text
+    print(argumento)
+    match = re.search(pattern, argumento)
+    if match:
+        uuid_extraido = match.group(0)
+        print("UUID encontrado:", uuid_extraido)
+        uuid = 's-1-' + uuid_extraido
+        # Verificar que tipo de tarea es
+        try:
+            segmento = requests.get(
+                API_CORE + '/api/get_task_segment?task_segment_id=' + uuid, timeout=60)
+            print(segmento)
+            segmento = segmento.json()
+            task_identifier = segmento['task_identifier']
+            print(task_identifier)
+            if task_identifier == 'captura':
+                # eliminar de redis
+                try:
+                    requests.post(EVENT_BUS + '/redis/setTaskEstatusFake',
+                                  json={"taskId": uuid}, timeout=60)
+                except Exception:
+                    mensaje_republicar = 'no se pudo eliminar de redis'
+
+                # republicarla
+                requests.post(
+                    EVENT_HANDLER + '/redis/publishTask', json={"message": {"uuid": uuid, "segment": 1, "task_identifier": "captura", "priority": 3, "deadline": 15, "requested_at": 1.626798221209E9, "data": {}, "stage": {"stage_list": "stage=9"}, "forManagerReview": False, "role": "captura"}}, timeout=90)
+                mensaje_republicar = "Tarea republicada correctamente"
+        except Exception:
+            mensaje_republicar = "No existe segmento"
+    else:
+        mensaje_republicar = 'No se encontró UUID'
+
+    await update.message.reply_text(mensaje_republicar)
+
+
 application = ApplicationBuilder().token(
     TOKEN).build()
 application.add_handler(CommandHandler("echo", echo))
 application.add_handler(CommandHandler("getliga", get_liga))
+application.add_handler(CommandHandler("republicar", republicar))
 
 application.add_handler(CommandHandler("desbloquear", desbloquear_correo))
 application.run_polling(allowed_updates=Update.ALL_TYPES)
