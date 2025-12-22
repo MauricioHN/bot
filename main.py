@@ -1,13 +1,18 @@
 """Bot de comandos para telegram"""
 import re
+import os
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 API_INBOUND = 'https://layer-api-inbound-reservation-service'
 API_CORE = 'https://layer-api-core-service'
 API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
+
+if not TOKEN:
+    raise RuntimeError("❌ TELEGRAM_TOKEN no está definido")
 
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -116,8 +121,11 @@ async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(mensaje)
 
+# application = ApplicationBuilder().token(
+ #   "7988722624:AAGqIlwSc8sDHbI7WHbShSNEmqnTrxH9c9E").build()
+
 application = ApplicationBuilder().token(
-    "7988722624:AAGqIlwSc8sDHbI7WHbShSNEmqnTrxH9c9E").build()
+    TOKEN).build()
 application.add_handler(CommandHandler("echo", echo))
 application.add_handler(CommandHandler("getliga", get_liga))
 
