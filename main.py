@@ -11,164 +11,171 @@ API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
 EVENT_HANDLER = 'https://layer-api-event-handler-service.tysonprod.com/v1'
 EVENT_BUS = 'https://layer-api-event-bus-service.tysonprod.com/v1'
 
-VERSION = "2.1.26 "
+VERSION = "2.1.26"
 NOTA_VERSION = "Se agrego el comando para repulicar captura, veridispersion con el comando /rep"
 
 
 if not TOKEN:
     raise RuntimeError("❌ TELEGRAM_TOKEN no está definido")
 
+# Funciones genericas
+
+
+def extract_uuid(text: str) -> str | None:
+    pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+    match = re.search(pattern, text)
+    return match.group(0) if match else None
+
+
+def extract_hex_id(text: str) -> str | None:
+    match = re.search(r"\b[a-fA-F0-9]{20,40}\b", text)
+    return match.group(0) if match else None
+
+
+def extract_email(text: str) -> str | None:
+    match = re.search(
+        r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(com|com\.mx)", text
+    )
+    return match.group(0) if match else None
+
+
+def safe_get(url: str, **kwargs):
+    response = requests.get(url, timeout=60, **kwargs)
+    response.raise_for_status()
+    return response.json()
+
+
+def safe_post(url: str, **kwargs):
+    response = requests.post(url, timeout=60, **kwargs)
+    response.raise_for_status()
+    return response.json()
+
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """hola"""
     print("🤖 Bot iniciado correctamente")
-    await update.message.reply_text(VERSION + "\n" + NOTA_VERSION)
-
-
-async def prop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    argumento = update.message.text.split(maxsplit=1)[1]
-    print(argumento)
-    segment = requests.get(
-        API_CORE + '/api/get_task_segment?task_segment_id=' + argumento, timeout=70)
-    segmento = segment.json()
-    segmento = segmento['status']
-    print(segmento)
-    await update.message.reply_text(segmento)
+    await update.message.reply_text(VERSION + " " + NOTA_VERSION)
 
 
 async def get_liga(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """genera la liga de una videollamada"""
-    # argumento = update.message.text.split(maxsplit=1)[1]
-    argumento = update.message.text
-    print(argumento)
-    # separa el mensaje completo y desecha todo menos el id
-    match = re.search(r"\b([a-fA-F0-9]{20,40})\b", argumento)
-    if match:
-        argumento = match.group(1)
-        print(argumento)
+    argumento = extract_hex_id(update.message.text)
+    if not argumento:
+        await update.message.reply_text("No se encontró ID de solicitud.")
+        return
 
-    url_get_tareas = API_INBOUND + \
-        '.tysonprod.com/v1/api/videocallReservationByIdSolicitud'
-    url_get_request = API_CORE + '/api/get_task_request?uuid='
-    url_get_crowd_task = API_CORE + \
-        '/api/get_task_results_manager?pageNumber=0&itemsPerPage=1000&period=ALL&idSolicitud='
-
-    response_get_traeas = requests.post(
-        url_get_tareas, json={"idSolicitud": argumento}, timeout=60)
-    get_tareas = response_get_traeas.json()
-    crowd_task = requests.get(url_get_crowd_task + argumento, timeout=60)
-    tasks = crowd_task.json()
-    print("========================================")
-    print(response_get_traeas.status_code)
-    print(get_tareas)
     try:
-        url = get_tareas['url']
-    except:
-        url = get_tareas['message']
+        tareas = safe_post(
+            f"{API_INBOUND}.tysonprod.com/v1/api/videocallReservationByIdSolicitud",
+            json={"idSolicitud": argumento}
+        )
+        url = tareas.get("url") or tareas.get("message")
 
-    if response_get_traeas.status_code == 200:
-        tasks = tasks['list']
+        tasks = safe_get(
+            f"{API_CORE}/api/get_task_results_manager",
+            params={
+                "pageNumber": 0,
+                "itemsPerPage": 1000,
+                "period": "ALL",
+                "idSolicitud": argumento
+            }
+        ).get("list", [])
+
         for task in tasks:
-            task_identifier = task['task_identifier']
-            if task_identifier == 'videollamada':
-                uuid = task['task_request_uuid']
-                get_request = requests.get(url_get_request + uuid, timeout=60)
-                task_id = get_request.json()
-                task_id = task_id['data']['taskId']
-                if task_id == 'VERIDENTIVIDEOCOA':
-                    url = url + '&typecall=muted'
+            if task["task_identifier"] == "videollamada":
+                uuid = task["task_request_uuid"]
+                task_data = safe_get(
+                    f"{API_CORE}/api/get_task_request", params={"uuid": uuid})
+                if task_data["data"]["taskId"] == "VERIDENTIVIDEOCOA":
+                    url += "&typecall=muted"
                 break
-    await update.message.reply_text(url)
+
+        await update.message.reply_text(url)
+    except Exception:
+        await update.message.reply_text("Error al generar la liga.")
 
 
 async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Desbloequear correos de crowd"""
-    argumento = update.message.text
-    # separa el mensaje completo y desecha todo menos el id
-    print(argumento)
-    match = re.search(
-        r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com", argumento)
-    matchmx = re.search(
-        r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com.mx", argumento)
-    if matchmx:
-        correo = matchmx.group(0)
-        print(correo)
-    else:
-        correo = match.group(0)
-        print(correo)
+    correo = extract_email(update.message.text)
+    if not correo:
+        await update.message.reply_text("Correo no válido.")
+        return
 
-    url_obtener_uuid = f"{API_WEB}/api/get_worker_id_by_email/{correo}"
-    response_uuid = requests.get(url_obtener_uuid, timeout=60)
-    if not response_uuid.ok:
-        mensaje = 'No se encontró UUID para este correo.'
+    try:
+        uuid_data = safe_get(f"{API_WEB}/api/get_worker_id_by_email/{correo}")
+        worker_uuid = uuid_data["uuid"]
 
-    uuid_data = response_uuid.json()
-    worker_uuid = uuid_data.get('uuid')
-    url_info_worker = f"{API_WEB}/api/get_worker/{worker_uuid}"
-    response_info_worker = requests.get(url_info_worker, timeout=60)
-    if not response_info_worker.ok:
-        mensaje = 'No se pudo obtener la información del trabajador.'
-    worker_info = response_info_worker.json()
-    session_id = worker_info.get('session_id')
+        worker_info = safe_get(f"{API_WEB}/api/get_worker/{worker_uuid}")
+        payload = {
+            "worker_uuid": worker_uuid,
+            "session_id": worker_info["session_id"]
+        }
 
-    url_desbloqueo = f"{API_WEB}/api/logout_worker"
-    payload = {
-        "worker_uuid": worker_uuid,
-        "session_id": session_id,
-    }
-    response_desbloqueo = requests.post(
-        url_desbloqueo, json=payload, timeout=60)
-
-    if response_desbloqueo.ok:
+        safe_post(f"{API_WEB}/api/logout_worker", json=payload)
         mensaje = "Correo desbloqueado correctamente."
-    else:
+    except Exception:
         mensaje = "Error al desbloquear el correo."
 
     await update.message.reply_text(mensaje)
 
 
 async def republicar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Republicar una tarea de captura o veridispersion"""
-    print("🤖 Bot iniciado correctamente")
-    # Expresión regular para UUID
-    pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+    uuid = extract_uuid(update.message.text)
+    if not uuid:
+        await update.message.reply_text("No se encontró UUID.")
+        return
 
-    argumento = update.message.text
-    print(argumento)
-    match = re.search(pattern, argumento)
-    if match:
-        print("Exctrayendo UUID...")
-        uuid_extraido = match.group(0)
-        print("UUID encontrado:", uuid_extraido)
-        # Obtener tipo de tarea
-        get_task_type = requests.get(
-            API_CORE + "/api/get_task_results_manager?pageNumber=0&itemsPerPage=5&taskId=" + uuid_extraido + "&period=ALL")
-        task_type = get_task_type.json()
-        task_type = task_type['list'][0]['task_identifier']
+    try:
+        task_data = safe_get(
+            f"{API_CORE}/api/get_task_results_manager",
+            params={
+                "pageNumber": 0,
+                "itemsPerPage": 5,
+                "taskId": uuid,
+                "period": "ALL"
+            }
+        )
+        task_type = task_data["list"][0]["task_identifier"]
 
-        print("Eliminando tarea de redis...")
-        try:
-            requests.post(EVENT_BUS + '/redis/setTaskEstatusFake',
-                          json={"taskId": 's-1-' + uuid_extraido}, timeout=60)
-        except Exception:
-            mensaje_republicar = 'no se pudo eliminar de redis'
-        try:
-            if task_type == 'VERIDISPERSION':
-                print("Republicando tarea de veridispersion...")
-                requests.post(
-                    EVENT_HANDLER + '/redis/publishTask', json={"message": {"uuid": 's-1-' + uuid_extraido, "segment": 1, "task_identifier": "veridispersion", "priority": 3, "deadline": 15, "requested_at": 1.626798221209E9, "data": {}, "stage": {"stage_list": "stage=32"}, "forManagerReview": False, "role": "veridispersion"}}, timeout=90)
-            if task_type == 'captura':
-                print("Republicando tarea de captura...")
-                requests.post(
-                    EVENT_HANDLER + '/redis/publishTask', json={"message": {"uuid": 's-1-' + uuid_extraido, "segment": 1, "task_identifier": "captura", "priority": 3, "deadline": 15, "requested_at": 1.626798221209E9, "data": {}, "stage": {"stage_list": "stage=9"}, "forManagerReview": False, "role": "captura"}}, timeout=90)
+        safe_post(
+            f"{EVENT_BUS}/redis/setTaskEstatusFake",
+            json={"taskId": f"s-1-{uuid}"}
+        )
 
-                mensaje_republicar = "Tarea republicada correctamente"
-        except Exception:
-            mensaje_republicar = "No existe segmento"
-    else:
-        mensaje_republicar = 'No se encontró UUID'
+        payload_base = {
+            "uuid": f"s-1-{uuid}",
+            "segment": 1,
+            "priority": 3,
+            "deadline": 15,
+            "requested_at": 1.626798221209E9,
+            "data": {},
+            "forManagerReview": False,
+        }
 
-    await update.message.reply_text(mensaje_republicar)
+        if task_type == "VERIDISPERSION":
+            payload_base.update({
+                "task_identifier": "veridispersion",
+                "role": "veridispersion",
+                "stage": {"stage_list": "stage=32"},
+            })
+        elif task_type == "captura":
+            payload_base.update({
+                "task_identifier": "captura",
+                "role": "captura",
+                "stage": {"stage_list": "stage=9"},
+            })
+        else:
+            raise ValueError("Tipo de tarea no soportado")
+
+        safe_post(
+            f"{EVENT_HANDLER}/redis/publishTask",
+            json={"message": payload_base}
+        )
+
+        mensaje = "Tarea republicada correctamente."
+    except Exception:
+        mensaje = "No se pudo republicar la tarea."
+
+    await update.message.reply_text(mensaje)
 
 
 application = ApplicationBuilder().token(
