@@ -11,6 +11,10 @@ API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
 EVENT_HANDLER = 'https://layer-api-event-handler-service.tysonprod.com/v1'
 EVENT_BUS = 'https://layer-api-event-bus-service.tysonprod.com/v1'
 
+VERSION = "2.1.26 "
+NOTA_VERSION = "Se agrego el comando para repulicar captura, veridispersion con el comando /rep"
+
+
 if not TOKEN:
     raise RuntimeError("❌ TELEGRAM_TOKEN no está definido")
 
@@ -18,7 +22,7 @@ if not TOKEN:
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """hola"""
     print("🤖 Bot iniciado correctamente")
-    await update.message.reply_text(update.message.text)
+    await update.message.reply_text(VERSION + "\n" + NOTA_VERSION)
 
 
 async def prop(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,28 +137,31 @@ async def republicar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(argumento)
     match = re.search(pattern, argumento)
     if match:
+        print("Exctrayendo UUID...")
         uuid_extraido = match.group(0)
         print("UUID encontrado:", uuid_extraido)
-        uuid = 's-1-' + uuid_extraido
-        # Verificar que tipo de tarea es
-        try:
-            segmento = requests.get(
-                API_CORE + '/api/get_task_segment?task_segment_id=' + uuid, timeout=60)
-            print(segmento)
-            segmento = segmento.json()
-            task_identifier = segmento['task_identifier']
-            print(task_identifier)
-            if task_identifier == 'captura':
-                # eliminar de redis
-                try:
-                    requests.post(EVENT_BUS + '/redis/setTaskEstatusFake',
-                                  json={"taskId": uuid}, timeout=60)
-                except Exception:
-                    mensaje_republicar = 'no se pudo eliminar de redis'
+        # Obtener tipo de tarea
+        get_task_type = requests.get(
+            API_CORE + "/api/get_task_results_manager?pageNumber=0&itemsPerPage=5&taskId=" + uuid_extraido + "&period=ALL")
+        task_type = get_task_type.json()
+        task_type = task_type['list'][0]['task_identifier']
 
-                # republicarla
+        print("Eliminando tarea de redis...")
+        try:
+            requests.post(EVENT_BUS + '/redis/setTaskEstatusFake',
+                          json={"taskId": 's-1-' + uuid_extraido}, timeout=60)
+        except Exception:
+            mensaje_republicar = 'no se pudo eliminar de redis'
+        try:
+            if task_type == 'VERIDISPERSION':
+                print("Republicando tarea de veridispersion...")
                 requests.post(
-                    EVENT_HANDLER + '/redis/publishTask', json={"message": {"uuid": uuid, "segment": 1, "task_identifier": "captura", "priority": 3, "deadline": 15, "requested_at": 1.626798221209E9, "data": {}, "stage": {"stage_list": "stage=9"}, "forManagerReview": False, "role": "captura"}}, timeout=90)
+                    EVENT_HANDLER + '/redis/publishTask', json={"message": {"uuid": 's-1-' + uuid_extraido, "segment": 1, "task_identifier": "veridispersion", "priority": 3, "deadline": 15, "requested_at": 1.626798221209E9, "data": {}, "stage": {"stage_list": "stage=32"}, "forManagerReview": False, "role": "veridispersion"}}, timeout=90)
+            if task_type == 'captura':
+                print("Republicando tarea de captura...")
+                requests.post(
+                    EVENT_HANDLER + '/redis/publishTask', json={"message": {"uuid": 's-1-' + uuid_extraido, "segment": 1, "task_identifier": "captura", "priority": 3, "deadline": 15, "requested_at": 1.626798221209E9, "data": {}, "stage": {"stage_list": "stage=9"}, "forManagerReview": False, "role": "captura"}}, timeout=90)
+
                 mensaje_republicar = "Tarea republicada correctamente"
         except Exception:
             mensaje_republicar = "No existe segmento"
@@ -168,9 +175,9 @@ application = ApplicationBuilder().token(
     TOKEN).build()
 application.add_handler(CommandHandler("echo", echo))
 application.add_handler(CommandHandler("getliga", get_liga))
-application.add_handler(CommandHandler("republicar", republicar))
+application.add_handler(CommandHandler("rep", republicar))
 
-application.add_handler(CommandHandler("desbloquear", desbloquear_correo))
+application.add_handler(CommandHandler("desb", desbloquear_correo))
 application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 # push prueba s
