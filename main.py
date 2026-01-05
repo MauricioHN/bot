@@ -185,7 +185,7 @@ async def imagenes_ine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No se encontró UUID.")
         return
 
-    mensaje = f"{API_MULTIMEDIA}/api/view/{uuid}/INE_ANVERSO \n {API_MULTIMEDIA}/api/view/{uuid}/INE_REVERSO \n {API_MULTIMEDIA}/api/view/{uuid}/SELFIE"
+    mensaje = f"INE_ANVERSO  =  {API_MULTIMEDIA}/api/view/{uuid}/INE_ANVERSO \n INE_REVERSO  =  {API_MULTIMEDIA}/api/view/{uuid}/INE_REVERSO \n SELFIE  =  {API_MULTIMEDIA}/api/view/{uuid}/SELFIE"
 
     await update.message.reply_text(mensaje)
 
