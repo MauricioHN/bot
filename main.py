@@ -7,12 +7,13 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 TOKEN = "7988722624:AAH9rikaK3EndGcrEqSPQG_V4l3QotIDMJE"
 API_INBOUND = 'https://layer-api-inbound-reservation-service'
 API_CORE = 'https://layer-api-core-service.tysonprod.com/v1'
+API_MULTIMEDIA = 'https://layer-api-multimedia-service.tysonprod.com/v1'
 API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
 EVENT_HANDLER = 'https://layer-api-event-handler-service.tysonprod.com/v1'
 EVENT_BUS = 'https://layer-api-event-bus-service.tysonprod.com/v1'
 
-VERSION = "2.1.26"
-NOTA_VERSION = "Se agrego el comando para repulicar captura, veridispersion con el comando /rep"
+VERSION = "1.5.1.26"
+NOTA_VERSION = "se agrea poder obtener imagenes de la videollamada con el commando /ine"
 
 
 if not TOKEN:
@@ -178,13 +179,25 @@ async def republicar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(mensaje)
 
 
+async def imagenes_ine(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uuid = extract_uuid(update.message.text)
+    if not uuid:
+        await update.message.reply_text("No se encontró UUID.")
+        return
+
+    mensaje = f"{API_MULTIMEDIA}/api/view/{uuid}/INE_ANVERSO \n {API_MULTIMEDIA}/api/view/{uuid}/INE_REVERSO \n {API_MULTIMEDIA}/api/view/{uuid}/SELFIE"
+
+    await update.message.reply_text(mensaje)
+
+
 application = ApplicationBuilder().token(
     TOKEN).build()
 application.add_handler(CommandHandler("echo", echo))
 application.add_handler(CommandHandler("getliga", get_liga))
 application.add_handler(CommandHandler("rep", republicar))
-
-application.add_handler(CommandHandler("desb", desbloquear_correo))
+application.add_handler(CommandHandler("des", desbloquear_correo))
+application.add_handler(CommandHandler("ine", imagenes_ine))
+application.run_polling(allowed_updates=Update.ALL_TYPES)
 application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 # push prueba s
