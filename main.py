@@ -17,8 +17,8 @@ API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
 EVENT_HANDLER = 'https://layer-api-event-handler-service.tysonprod.com/v1'
 EVENT_BUS = 'https://layer-api-event-bus-service.tysonprod.com/v1'
 
-VERSION = "1.5.1.26"
-NOTA_VERSION = "se agrea poder obtener imagenes de la videollamada con el commando /ine"
+VERSION = "1.6.1.26"
+NOTA_VERSION = "Prueba del token como secret"
 
 
 if not TOKEN:
