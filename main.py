@@ -4,7 +4,12 @@ import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TOKEN = "8288399498:AAECc2jRjQE1taXjxe52OEa-AC2thf_5AaE"
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_INBOUND = 'https://layer-api-inbound-reservation-service'
 API_CORE = 'https://layer-api-core-service.tysonprod.com/v1'
 API_MULTIMEDIA = 'https://layer-api-multimedia-service.tysonprod.com/v1'
