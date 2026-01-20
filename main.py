@@ -9,7 +9,7 @@ import os
 
 load_dotenv()
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = "8288399498:AAECc2jRjQE1taXjxe52OEa-AC2thf_5AaE"
 API_INBOUND = 'https://layer-api-inbound-reservation-service'
 API_CORE = 'https://layer-api-core-service.tysonprod.com/v1'
 API_MULTIMEDIA = 'https://layer-api-multimedia-service.tysonprod.com/v1'
@@ -17,8 +17,8 @@ API_WEB = 'https://layer-api-web-service.tysonprod.com/v1'
 EVENT_HANDLER = 'https://layer-api-event-handler-service.tysonprod.com/v1'
 EVENT_BUS = 'https://layer-api-event-bus-service.tysonprod.com/v1'
 
-VERSION = "1.6.1.26"
-NOTA_VERSION = "Prueba del token como secret"
+VERSION = "1.20.1.26"
+NOTA_VERSION = "Probar error en desbloqueo de correo"
 
 
 if not TOKEN:
@@ -116,10 +116,12 @@ async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "session_id": worker_info["session_id"]
         }
 
-        safe_post(f"{API_WEB}/api/logout_worker", json=payload)
+        respuesta = safe_post(f"{API_WEB}/api/logout_worker", json=payload)
+        respuesta = respuesta.json()
         mensaje = "Correo desbloqueado correctamente."
     except Exception:
-        mensaje = "Error al desbloquear el correo."
+        mensaje = "Error al desbloquear el correo. " + \
+            respuesta.get("message", "")
 
     await update.message.reply_text(mensaje)
 
