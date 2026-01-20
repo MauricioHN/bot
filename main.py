@@ -111,14 +111,12 @@ async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         uuid_data = safe_get(f"{API_WEB}/api/get_worker_id_by_email/{correo}")
         worker_uuid = uuid_data["uuid"]
-        await update.message.reply_text(worker_uuid)
 
         worker_info = safe_get(f"{API_WEB}/api/get_worker/{worker_uuid}")
         payload = {
             "worker_uuid": worker_uuid,
             "session_id": worker_info["session_id"]
         }
-        await update.message.reply_text(worker_info.json())
 
         respuesta = safe_post(f"{API_WEB}/api/logout_worker", json=payload)
         print(respuesta.json())
