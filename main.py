@@ -1,5 +1,6 @@
 """Bot de comandos para telegram"""
 import re
+import logging as log
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -60,6 +61,7 @@ def safe_post(url: str, **kwargs):
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """hola"""
     print("🤖 Bot iniciado correctamente")
+    log.info("Bot iniciado correctamente")
     await update.message.reply_text(VERSION + " " + NOTA_VERSION)
 
 
