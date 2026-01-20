@@ -118,13 +118,13 @@ async def desbloquear_correo(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "worker_uuid": worker_uuid,
             "session_id": worker_info["session_id"]
         }
-        print(worker_info.json())
+        await update.message.reply_text(worker_info.json())
 
         respuesta = safe_post(f"{API_WEB}/api/logout_worker", json=payload)
         print(respuesta.json())
         mensaje = "Correo desbloqueado correctamente."
     except Exception:
-        mensaje = "Error al desbloquear el correo. "
+        mensaje = "Error al desbloquear el correo. " + exception.__str__()
 
     await update.message.reply_text(mensaje)
 
